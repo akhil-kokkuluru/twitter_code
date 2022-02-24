@@ -35,3 +35,4 @@ app.get("/", async (request, response) => {
   const forstresponse = await db.get(check);
   response.send(forstresponse);
 });
+console.log("akhil");
