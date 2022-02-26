@@ -40,6 +40,39 @@ const passwordCheck = (wordstring) => {
   }
 };
 
+const jwtTokenAuthentication = (request, response, next) => {
+  let jwtGiven;
+  const authHeader = request.headers["authorization"];
+  if (authHeader === undefined) {
+    response.status(401);
+    response.send("Invalid JWT Token");
+  } else {
+    jwtGiven = authHeader.split(" ")[1];
+    const jwtVerification = jwt.verify(
+      jwtGiven,
+      "akhil_code",
+      async (error, payload) => {
+        if (error) {
+          response.status(401);
+          response.send("Invalid JWT Token");
+        } else {
+          request.username = payload.username;
+          next();
+        }
+      }
+    );
+  }
+};
+
+const dateFormat = (argument) => {
+  let formattedTweet = {
+    username: argument.username,
+    tweet: argument.tweet,
+    dateTime: argument.date_time,
+  };
+  return formattedTweet;
+};
+
 // 1) POST API: /register/
 
 app.post("/register/", async (request, response) => {
@@ -101,3 +134,32 @@ app.post("/login/", async (request, response) => {
     }
   }
 });
+
+//  3) GET API: /user/tweets/feed/
+
+app.get(
+  "/user/tweets/feed/",
+  jwtTokenAuthentication,
+  async (request, response) => {
+    let { username } = request;
+    const findingUserId = `
+    SELECT
+    user_id
+    FROM
+    user
+    WHERE username = "${username}";`;
+
+    const userIDofuser = await db.get(findingUserId);
+    let { user_id } = userIDofuser;
+    const tweetQuery = `
+      SELECT 
+      username,tweet,date_time 
+      FROM tweet INNER JOIN follower ON tweet.user_id = follower.following_user_id INNER JOIN user ON follower.following_user_id = user.user_id 
+      WHERE follower_user_id="${user_id}" 
+      ORDER BY tweet.date_time DESC LIMIT 4;`;
+
+    const tweetResponse = await db.all(tweetQuery);
+    response.send(tweetResponse.map((n) => dateFormat(n)));
+    console.log(user_id);
+  }
+);
