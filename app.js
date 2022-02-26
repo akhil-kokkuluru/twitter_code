@@ -163,3 +163,27 @@ app.get(
     console.log(user_id);
   }
 );
+
+//  4) GET API: /user/following/
+
+app.get(
+  "/user/following/",
+  jwtTokenAuthentication,
+  async (request, response) => {
+    let { username } = request;
+    const findingUserId = `
+    SELECT
+    user_id
+    FROM
+    user
+    WHERE username = "${username}";`;
+    const userIDofuser = await db.get(findingUserId);
+    let { user_id } = userIDofuser;
+    const followingQuery = `
+    SELECT name from user INNER JOIN follower ON user.user_id = follower.following_user_id 
+    WHERE follower_user_id =${user_id};`;
+
+    const userFollowing = await db.all(followingQuery);
+    response.send(userFollowing);
+  }
+);
