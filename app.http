@@ -11,3 +11,13 @@ Content-Type: application/json
   "name": "Adam Richard",
   "gender": "male"
 }
+
+###
+
+POST http://localhost:3000/login/ HTTP/1.1
+Content-Type: application/json
+
+{
+  "username":"adam_richard",
+  "password":"indiaismycfountry"
+}

@@ -28,6 +28,8 @@ const serverInitilization = async () => {
 
 serverInitilization();
 
+module.exports = app;
+
 // UTILITIES
 
 const passwordCheck = (wordstring) => {
@@ -67,4 +69,35 @@ app.post("/register/", async (request, response) => {
     }
   }
 });
-module.exports = app;
+
+//  2) POST API: /login/
+
+app.post("/login/", async (request, response) => {
+  const { username, password } = request.body;
+  const userCheckingQuery = `
+    SELECT
+    *
+    FROM
+    user
+    WHERE username = "${username}";`;
+  const usernameInTable = await db.get(userCheckingQuery);
+  if (usernameInTable === undefined) {
+    response.status(400);
+    response.send("Invalid user");
+  } else {
+    const passwordVerify = await bcrypt.compare(
+      password,
+      usernameInTable.password
+    );
+    if (passwordVerify) {
+      const payload = {
+        username: username,
+      };
+      const jwtToken = jwt.sign(payload, "akhil_code");
+      response.send({ jwtToken });
+    } else {
+      response.status(400);
+      response.send("Invalid password");
+    }
+  }
+});
