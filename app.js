@@ -73,6 +73,15 @@ const dateFormat = (argument) => {
   return formattedTweet;
 };
 
+const dateFormatTwo = (arg) => {
+  let formatted = {
+    tweet: arg.tweet,
+    likes: arg.likes,
+    replies: arg.replies,
+    dateTime: arg.date_time,
+  };
+  return formatted;
+};
 // 1) POST API: /register/
 
 app.post("/register/", async (request, response) => {
@@ -187,3 +196,81 @@ app.get(
     response.send(userFollowing);
   }
 );
+
+//  5) GET API: /user/followers/
+
+app.get(
+  "/user/followers/",
+  jwtTokenAuthentication,
+  async (request, response) => {
+    let { username } = request;
+    const findingUserId = `
+    SELECT
+    user_id
+    FROM
+    user
+    WHERE username = "${username}";`;
+    const userIDofuser = await db.get(findingUserId);
+    let { user_id } = userIDofuser;
+    const followingQuery = `
+    SELECT name from user INNER JOIN follower ON user.user_id = follower.follower_user_id 
+    WHERE following_user_id =${user_id};`;
+
+    const userFollowing = await db.all(followingQuery);
+    response.send(userFollowing);
+  }
+);
+
+//  6)  GET API : /tweets/:tweetId/
+
+app.get(
+  "/tweets/:tweetId/",
+  jwtTokenAuthentication,
+  async (request, response) => {
+    const { tweetId } = request.params;
+    let { username } = request;
+    const findingUserId = `
+    SELECT
+    user_id
+    FROM
+    user
+    WHERE username = "${username}";`;
+    const userIDofuser = await db.get(findingUserId);
+    let { user_id } = userIDofuser;
+    const followingQuery = `
+    select 
+    tweet, count(like_id) as likes, count(reply) as replies, date_time
+    from tweet inner join follower on tweet.user_id = follower.following_user_id 
+    inner join like on like.tweet_id = tweet.tweet_id inner join reply on reply.tweet_id = tweet.tweet_id
+    where follower.follower_user_id = ${user_id} and tweet.tweet_id = ${tweetId};`;
+    const userFollowing = await db.all(followingQuery);
+    const { tweet } = userFollowing;
+    if (userFollowing[0].tweet !== null) {
+      response.send(userFollowing.map((f) => dateFormatTwo(f)));
+    } else {
+      response.send("Invalid Request");
+      response.status(401);
+    }
+  }
+);
+
+//  7) GET API : /user/tweets/
+
+app.get("/user/tweets/", jwtTokenAuthentication, async (request, response) => {
+  const { tweetId } = request.params;
+  let { username } = request;
+  const findingUserId = `
+    SELECT
+    user_id
+    FROM
+    user
+    WHERE username = "${username}";`;
+  const userIDofuser = await db.get(findingUserId);
+  let { user_id } = userIDofuser;
+  const followingQuery = `
+    select tweet , count(like_id) as likes ,count(reply_id) as replies, tweet.date_time as dateTime
+    from tweet inner join reply on tweet.tweet_id = reply.tweet_id inner join like on tweet.tweet_id = like.tweet_id where tweet.user_id = ${user_id} group by tweet;`;
+  const userFollowing = await db.all(followingQuery);
+
+  response.send(userFollowing);
+});
