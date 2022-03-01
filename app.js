@@ -88,6 +88,11 @@ const likesFormat = (likes) => {
   return username;
 };
 
+const repliesFormat = (replies) => {
+  let replyReturn = { name: replies.name, reply: replies.reply };
+  return replyReturn;
+};
+
 // 1) POST API: /register/
 
 app.post("/register/", async (request, response) => {
@@ -289,6 +294,127 @@ app.get(
       response.send("Invalid Request");
     } else {
       response.send(resulting);
+    }
+  }
+);
+
+//  8) GET API : /tweets/:tweetId/replies/
+
+app.get(
+  "/tweets/:tweetId/replies/",
+  jwtTokenAuthentication,
+  async (request, response) => {
+    const { tweetId } = request.params;
+    let { username } = request;
+    const findingUserId = `
+    SELECT
+    user_id
+    FROM
+    user
+    WHERE username = "${username}";`;
+    const userIDofuser = await db.get(findingUserId);
+    let { user_id } = userIDofuser;
+    const followingQuery = `select reply, username as name, tweet from reply
+    left join user on 
+    reply.user_id = user.user_id left join tweet on user.user_id = tweet.user_id
+     where reply.tweet_id = ${tweetId} and reply.tweet_id in 
+     (select tweet_id from tweet left join follower on
+        tweet.user_id = follower.following_user_id where 
+        follower.follower_user_id = ${user_id}) group by reply;`;
+    const userFollowing = await db.all(followingQuery);
+    let replies = userFollowing.map((u) => repliesFormat(u));
+    if (userFollowing[0] === undefined) {
+      response.status(401);
+      response.send("Invalid Request");
+    } else {
+      response.send({ replies });
+    }
+  }
+);
+
+//  9)  GET API : /user/tweets/
+
+app.get("/user/tweets/", jwtTokenAuthentication, async (request, response) => {
+  const { tweetId } = request.params;
+  let { username } = request;
+  const findingUserId = `
+    SELECT
+    user_id
+    FROM
+    user
+    WHERE username = "${username}";`;
+  const userIDofuser = await db.get(findingUserId);
+  let { user_id } = userIDofuser;
+  const followingQuery = `select count(reply), count(like_id)
+  from like left join user on user.user_id = like.user_id left join reply
+  on user.user_id = reply.user_id left join tweet.user_id = user.user_id 
+  where tweet.tweet_id = 1;`;
+  const userFollowing = await db.all(followingQuery);
+  let replies = userFollowing.map((u) => repliesFormat(u));
+  if (userFollowing[0] === undefined) {
+    response.status(401);
+    response.send("Invalid Request");
+  } else {
+    response.send({ replies });
+  }
+});
+
+// 10 POST API : /user/tweets/
+
+app.post("/user/tweets/", jwtTokenAuthentication, async (request, response) => {
+  const { tweet } = request.body;
+  let { username } = request;
+  console.log(username);
+  const findingUserId = `
+      SELECT
+      user_id
+      FROM
+      user
+      WHERE username = "${username}";`;
+  const userIDofuser = await db.get(findingUserId);
+  let { user_id } = userIDofuser;
+
+  const tweetPostQuery = `
+    insert into
+    tweet(tweet, user_id)
+    values('${tweet}', ${user_id});`;
+
+  await db.run(tweetPostQuery);
+  response.send("Created a Tweet");
+});
+
+//  11 DELETE API : /tweets/:tweetId/
+
+app.delete(
+  "/tweets/:tweetId/",
+  jwtTokenAuthentication,
+  async (request, response) => {
+    const { tweetId } = request.params;
+    const { tweet } = request.body;
+    let { username } = request;
+    const findingUserId = `
+      SELECT
+      user_id
+      FROM
+      user
+      WHERE username = "${username}";`;
+    const userIDofuser = await db.get(findingUserId);
+    let { user_id } = userIDofuser;
+
+    const tweetDeleteQuery = `
+    delete from tweet where tweet_id = ${tweetId} and 
+    user_id = ${user_id}`;
+    const tweetSearch = `
+    select tweet from tweet where user_id = ${user_id} and
+     tweet_id = ${tweetId};`;
+
+    const tweetSearching = await db.all(tweetSearch);
+    if (tweetSearching[0] === undefined) {
+      response.status(401);
+      response.send("Invalid Request");
+    } else {
+      const deletion = await db.run(tweetDeleteQuery);
+      response.send("Tweet Removed");
     }
   }
 );
