@@ -82,6 +82,12 @@ const dateFormatTwo = (arg) => {
   };
   return formatted;
 };
+
+const likesFormat = (likes) => {
+  let { username } = likes;
+  return username;
+};
+
 // 1) POST API: /register/
 
 app.post("/register/", async (request, response) => {
@@ -239,9 +245,9 @@ app.get(
     let { user_id } = userIDofuser;
     const followingQuery = `
     select 
-    tweet, count(like_id) as likes, count(reply) as replies, date_time
-    from tweet inner join follower on tweet.user_id = follower.following_user_id 
-    inner join like on like.tweet_id = tweet.tweet_id inner join reply on reply.tweet_id = tweet.tweet_id
+    tweet, count(like.tweet_id) as likes, count(reply.tweet_id) as replies, date_time
+    from tweet left join follower on tweet.user_id = follower.following_user_id 
+    left join like on like.tweet_id = tweet.tweet_id left join reply on reply.tweet_id = tweet.tweet_id
     where follower.follower_user_id = ${user_id} and tweet.tweet_id = ${tweetId};`;
     const userFollowing = await db.all(followingQuery);
     const { tweet } = userFollowing;
@@ -254,23 +260,35 @@ app.get(
   }
 );
 
-//  7) GET API : /user/tweets/
+//  7) GET API : /tweets/:tweetId/likes/
 
-app.get("/user/tweets/", jwtTokenAuthentication, async (request, response) => {
-  const { tweetId } = request.params;
-  let { username } = request;
-  const findingUserId = `
+app.get(
+  "/tweets/:tweetId/likes/",
+  jwtTokenAuthentication,
+  async (request, response) => {
+    const { tweetId } = request.params;
+    let { username } = request;
+    const findingUserId = `
     SELECT
     user_id
     FROM
     user
     WHERE username = "${username}";`;
-  const userIDofuser = await db.get(findingUserId);
-  let { user_id } = userIDofuser;
-  const followingQuery = `
-    select tweet , count(like_id) as likes ,count(reply_id) as replies, tweet.date_time as dateTime
-    from tweet inner join reply on tweet.tweet_id = reply.tweet_id inner join like on tweet.tweet_id = like.tweet_id where tweet.user_id = ${user_id} group by tweet;`;
-  const userFollowing = await db.all(followingQuery);
-
-  response.send(userFollowing);
-});
+    const userIDofuser = await db.get(findingUserId);
+    let { user_id } = userIDofuser;
+    const followingQuery = `select username from tweet
+    left join like on tweet.tweet_id = like.tweet_id left join user on 
+    like.user_id = user.user_id left join follower on 
+    tweet.user_id = follower.following_user_id
+     where like.tweet_id = ${tweetId} and follower.follower_user_id = ${user_id};`;
+    const userFollowing = await db.all(followingQuery);
+    let resulting = { likes: userFollowing.map((v) => likesFormat(v)) };
+    let likes = { resulting };
+    if (userFollowing[0] === undefined) {
+      response.status(401);
+      response.send("Invalid Request");
+    } else {
+      response.send(resulting);
+    }
+  }
+);

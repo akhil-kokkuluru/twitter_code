@@ -39,10 +39,12 @@ Authorization: bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkpvZ
 
 ###
 
-GET http://localhost:3000/tweets/7/ HTTP/1.1
+GET http://localhost:3000/tweets/1/ HTTP/1.1
 Authorization: bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkpvZUJpZGVuIiwiaWF0IjoxNjQ1ODY5OTQ3fQ.LyTXRJME0QsNaYaNSO6C75QUfd3zPW0QZWd3AnM7WXM
 
-####
-GET http://localhost:3000/user/tweets/ HTTP/1.1
+###
+
+GET http://localhost:3000/tweets/2/likes/ HTTP/1.1
 Authorization: bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkpvZUJpZGVuIiwiaWF0IjoxNjQ1ODY5OTQ3fQ.LyTXRJME0QsNaYaNSO6C75QUfd3zPW0QZWd3AnM7WXM
+
 
