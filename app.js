@@ -248,19 +248,39 @@ app.get(
     WHERE username = "${username}";`;
     const userIDofuser = await db.get(findingUserId);
     let { user_id } = userIDofuser;
-    const followingQuery = `
-    select 
-    tweet, count(like.tweet_id) as likes, count(reply.tweet_id) as replies, date_time
-    from tweet left join follower on tweet.user_id = follower.following_user_id 
-    left join like on like.tweet_id = tweet.tweet_id left join reply on reply.tweet_id = tweet.tweet_id
-    where follower.follower_user_id = ${user_id} and tweet.tweet_id = ${tweetId};`;
-    const userFollowing = await db.all(followingQuery);
-    const { tweet } = userFollowing;
-    if (userFollowing[0].tweet !== null) {
-      response.send(userFollowing.map((f) => dateFormatTwo(f)));
+    const replyCountQuery = `
+    select count(reply) as replies from reply where tweet_id = ${tweetId};`;
+
+    const tweetQuery = `
+    select count(like_id) as likes, tweet , date_time from tweet left join like on 
+    tweet.tweet_id = like.tweet_id where tweet.tweet_id = ${tweetId} `;
+    const follwingCheckQuery = `
+    select tweet_id from tweet inner join follower 
+    on tweet.user_id = follower.following_user_id where 
+    follower_user_id = ${user_id};`;
+    const checking = await db.all(follwingCheckQuery);
+    const replyCount = await db.all(replyCountQuery);
+    const tweetLikes = await db.all(tweetQuery);
+    const [{ replies }] = replyCount;
+
+    const responseObject = (arg, args) => {
+      const returnObj = {
+        tweet: arg[0].tweet,
+        likes: arg[0].likes,
+        replies: args,
+        dateTime: arg[0].date_time,
+      };
+
+      return returnObj;
+    };
+    let g = responseObject(tweetLikes, replies);
+    let crossCheck = checking.map((r) => r.tweet_id);
+    let number = parseInt(tweetId);
+    if (crossCheck.some((g) => g === number)) {
+      response.send(g);
     } else {
-      response.send("Invalid Request");
       response.status(401);
+      response.send("Invalid Request");
     }
   }
 );
