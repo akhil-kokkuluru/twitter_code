@@ -334,13 +334,13 @@ app.get(
     WHERE username = "${username}";`;
     const userIDofuser = await db.get(findingUserId);
     let { user_id } = userIDofuser;
-    const followingQuery = `select reply, username as name, tweet from reply
+    const followingQuery = `select reply, name, tweet from reply
     left join user on 
     reply.user_id = user.user_id left join tweet on user.user_id = tweet.user_id
      where reply.tweet_id = ${tweetId} and reply.tweet_id in 
      (select tweet_id from tweet left join follower on
         tweet.user_id = follower.following_user_id where 
-        follower.follower_user_id = ${user_id}) group by reply;`;
+        follower.follower_user_id = ${user_id}) group by reply order by date_time desc;`;
     const userFollowing = await db.all(followingQuery);
     let replies = userFollowing.map((u) => repliesFormat(u));
     if (userFollowing[0] === undefined) {
@@ -365,18 +365,17 @@ app.get("/user/tweets/", jwtTokenAuthentication, async (request, response) => {
     WHERE username = "${username}";`;
   const userIDofuser = await db.get(findingUserId);
   let { user_id } = userIDofuser;
-  const followingQuery = `select count(reply), count(like_id)
-  from like left join user on user.user_id = like.user_id left join reply
-  on user.user_id = reply.user_id left join tweet.user_id = user.user_id 
-  where tweet.tweet_id = 1;`;
-  const userFollowing = await db.all(followingQuery);
-  let replies = userFollowing.map((u) => repliesFormat(u));
-  if (userFollowing[0] === undefined) {
-    response.status(401);
-    response.send("Invalid Request");
-  } else {
-    response.send({ replies });
-  }
+  const tweetDateQuery = `
+    select tweet, date_time as dateTime, tweet_id
+    from tweet where user_id = ${user_id} order by date_time desc;`;
+
+  const repliesQuery = `
+  select tweet,count(reply) as replies,tweet.date_time as dateTime , tweet.tweet_id from tweet left join reply on
+  tweet.tweet_Id = reply.tweet_id where tweet.user_id = ${user_id} group by tweet; `;
+  const tweetsDates = await db.all(tweetDateQuery);
+  const repliesOfTweets = await db.all(repliesQuery);
+  response.send(repliesOfTweets);
+  console.log(tweetsDates);
 });
 
 // 10 POST API : /user/tweets/
