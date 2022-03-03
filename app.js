@@ -363,19 +363,43 @@ app.get("/user/tweets/", jwtTokenAuthentication, async (request, response) => {
     FROM
     user
     WHERE username = "${username}";`;
+  let tweetID;
   const userIDofuser = await db.get(findingUserId);
   let { user_id } = userIDofuser;
-  const tweetDateQuery = `
-    select tweet, date_time as dateTime, tweet_id
-    from tweet where user_id = ${user_id} order by date_time desc;`;
 
-  const repliesQuery = `
-  select tweet,count(reply) as replies,tweet.date_time as dateTime , tweet.tweet_id from tweet left join reply on
-  tweet.tweet_Id = reply.tweet_id where tweet.user_id = ${user_id} group by tweet; `;
-  const tweetsDates = await db.all(tweetDateQuery);
-  const repliesOfTweets = await db.all(repliesQuery);
-  response.send(repliesOfTweets);
-  console.log(tweetsDates);
+  const tweetDateQuery = `
+  select tweet,date_time as dateTime, tweet_id from tweet where user_id = ${user_id};`;
+  const finalResp = await db.all(tweetDateQuery);
+
+  let newA = [];
+  for (let x of finalResp) {
+    const likeQ = `
+    select count(like_id) as likes from like where tweet_id = ${x.tweet_id};`;
+    let { likes } = await db.get(likeQ);
+    x.likes = likes;
+    newA.push(x);
+  }
+  for (let xg of finalResp) {
+    const likeQ = `
+    select count(reply) as replies from reply where tweet_id = ${xg.tweet_id};`;
+    let { replies } = await db.get(likeQ);
+    xg.replies = replies;
+    newA.push(xg);
+  }
+
+  let theFINALS = [];
+
+  for (let ak of finalResp) {
+    let g = {
+      tweet: ak.tweet,
+      likes: ak.likes,
+      replies: ak.replies,
+      dateTime: ak.dateTime,
+    };
+    theFINALS.push(g);
+  }
+
+  response.send(theFINALS);
 });
 
 // 10 POST API : /user/tweets/
